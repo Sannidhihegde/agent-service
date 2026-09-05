@@ -1,0 +1,13 @@
+server:
+  port: 9090
+
+inventory-service:
+  base-url: http://localhost:8080
+
+spring:
+  ai:
+    anthropic:
+      api-key: agent-service
+      chat:
+        options:
+          model: claude-sonnet-4-6
