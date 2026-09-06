@@ -1,13 +1,37 @@
 server:
   port: 9090
 
-inventory-service:
-  base-url: http://localhost:8080
-
 spring:
-  ai:
-    anthropic:
-      api-key: agent-service
-      chat:
-        options:
-          model: claude-sonnet-4-6
+  application:
+    name: agent-service
+
+eureka:
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+
+#server:
+#  port: 9090
+#
+#spring:
+#  application:
+#    name: agent-service
+#  ai:
+#    ollama:
+#      base-url: http://localhost:11434
+#      chat:
+#        options:
+#          model: llama3.1
+#
+#eureka:
+#  instance:
+#    hostname: localhost
+#    prefer-ip-address: false
+#    instance-id: ${spring.application.name}:${server.port}
+#  client:
+#    service-url:
+#      defaultZone: http://localhost:8761/eureka

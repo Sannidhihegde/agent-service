@@ -2,12 +2,10 @@ package com.agent.client;
 
 import com.agent.dto.InventoryItemDto;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.client.*;
 
 import java.util.List;
 
@@ -15,52 +13,37 @@ import java.util.List;
 @Component
 public class InventoryClient {
 
-    private final RestClient inventoryRestClient;
+    private final RestClient restClient;
 
-    public InventoryClient(RestClient inventoryRestClient) {
-        this.inventoryRestClient = inventoryRestClient;
+    public InventoryClient(@LoadBalanced RestClient.Builder builder) {
+        this.restClient = builder
+                .baseUrl("http://inventory-service")
+                .defaultHeader("Content-Type", "application/json")
+                .build();
     }
 
     public List<InventoryItemDto> fetchInventory(List<String> ids) {
-        return RetryExecutor.executeWithRetry(
-                () -> callInventoryService(ids),
-                3,      // maxAttempts
-                500,    // initialDelayMillis
-                2.0     // backoffMultiplier
-        );
+        return RetryExecutor.executeWithRetry(() -> callInventoryService(ids), 3, 500, 2.0);
     }
 
     private List<InventoryItemDto> callInventoryService(List<String> ids) {
         log.info("Calling inventory-service for ids: {}", ids);
-
         try {
-            return inventoryRestClient.get()
+            return restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/inventory/allDetails")
                             .queryParam("inventoryIds", ids)
                             .build())
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<InventoryItemDto>>() {});
-
         } catch (HttpClientErrorException.NotFound ex) {
-            log.warn("Inventory items not found for ids {}: {}", ids, ex.getMessage());
-            throw new InventoryUnavailableException(
-                    "One or more inventory items not found: " + ids, ex, false);
-
+            throw new InventoryUnavailableException("Not found: " + ids, ex, false);
         } catch (HttpClientErrorException ex) {
-            log.warn("Client error calling inventory-service: {}", ex.getStatusCode());
-            throw new InventoryUnavailableException(
-                    "Inventory service rejected the request", ex, false);
-
+            throw new InventoryUnavailableException("Client error", ex, false);
         } catch (HttpServerErrorException ex) {
-            log.error("Server error from inventory-service: {}", ex.getStatusCode());
-            throw new InventoryUnavailableException(
-                    "Inventory service is experiencing errors", ex, true);
-
+            throw new InventoryUnavailableException("Server error", ex, true);
         } catch (ResourceAccessException ex) {
-            log.error("Could not reach inventory-service", ex);
-            throw new InventoryUnavailableException(
-                    "Inventory service is unreachable", ex, true);
+            throw new InventoryUnavailableException("Unreachable", ex, true);
         }
     }
 }

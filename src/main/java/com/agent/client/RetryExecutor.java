@@ -23,7 +23,7 @@ public final class RetryExecutor {
             attempt++;
             try {
                 return action.get();
-            } catch (InventoryUnavailableException ex) {
+            } catch (DownstreamServiceException ex) {
                 boolean lastAttempt = attempt >= maxAttempts;
 
                 if (!ex.isRetryable() || lastAttempt) {
